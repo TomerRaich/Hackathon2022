@@ -1,0 +1,437 @@
+{
+ "cells": [
+  {
+   "cell_type": "code",
+   "execution_count": 1,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "import requests\n",
+    "import json\n",
+    "from monday import MondayClient\n",
+    "import pandas as pd\n",
+    "from pandas import DataFrame\n",
+    "import numpy as np"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 2,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "#constants\n",
+    "K_ws_id = 1522503\n",
+    "Board_ID = 2664269417\n",
+    "apiKey = \"eyJhbGciOiJIUzI1NiJ9.eyJ0aWQiOjE2MDA0MjUzMiwidWlkIjoyOTk1NzM3MSwiaWFkIjoiMjAyMi0wNS0xMVQxNToyMToyNC4wMDBaIiwicGVyIjoibWU6d3JpdGUiLCJhY3RpZCI6MTE4NzU5MjIsInJnbiI6InVzZTEifQ.b86AGy59f_Hx9dGp12GtFmW_ZvqC_4ssgQgmWQfWa2g\"\n",
+    "apiUrl = \"https://api.monday.com/v2\"\n",
+    "headers = {\"Authorization\" : apiKey}\n",
+    "boardtocopyid = 2667474017\n",
+    "copycopyboard = 2667482930"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 3,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# create API client\n",
+    "monday = MondayClient(apiKey)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# Functions:"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## Getters:"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 4,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Print Boards + workspace id:\n",
+    "def printworkspaceid(board_id):\n",
+    "    workspaceid = '{boards(ids: %d) {workspace_id} }'%board_id\n",
+    "    data = {'query' : workspaceid}\n",
+    "    r = requests.post(url=apiUrl, json=data, headers=headers) # make request\n",
+    "    print(r.json())"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 5,
+   "metadata": {
+    "scrolled": false
+   },
+   "outputs": [],
+   "source": [
+    "#get groups IDs:\n",
+    "def get_lst_ids(board_id):\n",
+    "    boarditems = '{boards(ids: %d) { groups{id} }}'%board_id\n",
+    "    data = {'query' : boarditems}\n",
+    "    r = requests.post(url=apiUrl, json=data, headers=headers) # make request\n",
+    "    dic = r.json()\n",
+    "    lstids = []\n",
+    "    lst = (dic['data']['boards'])\n",
+    "    n = lst[0]\n",
+    "    newd = n['groups']\n",
+    "    for i in newd:\n",
+    "        lstids.append(i['id'])\n",
+    "    return lstids"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 6,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "def getgroupitemsids_ret_lst(board_id, group_id):\n",
+    "    groupitems = '{boards(ids: %d) { groups(ids: %s){ items {id} }}}'%(board_id, group_id)\n",
+    "    data = {'query' : groupitems}\n",
+    "    r = requests.post(url=apiUrl, json=data, headers=headers) # make request\n",
+    "    dic = r.json()\n",
+    "    lst = []\n",
+    "    print (dic['data']['boards'][0]['groups'][0]['items'])\n",
+    "    for i in dic['data']['boards'][0]['groups'][0]['items']:\n",
+    "        lst.append(i['id'])\n",
+    "    return lst\n",
+    "    "
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## Creators:"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 7,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "#Create Board, return id:\n",
+    "def createboardreturnid(boardname):\n",
+    "    addupdate = 'mutation{ create_board (board_name: %s, board_kind: public) { id } }'%(boardname)\n",
+    "    data = {'query' : addupdate}\n",
+    "    r = requests.post(url=apiUrl, json=data, headers=headers)\n",
+    "    dic = r.json()\n",
+    "    return int(dic['data']['create_board']['id'])"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 8,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "#Copy Board:\n",
+    "def copyboard(board_id):\n",
+    "    boardcopy = 'mutation{duplicate_board (board_id: %d,duplicate_type: duplicate_board_with_structure) {board{id}}}'%(board_id,)\n",
+    "    data = {'query' : boardcopy }\n",
+    "    r = requests.post(url=apiUrl, json=data, headers=headers)\n",
+    "    print(r.json())"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 9,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Create Group:\n",
+    "def creategroupreturnid(board_id, groupname):\n",
+    "    group = 'mutation($myItemName: String!){create_group (board_id: %d, group_name: $myItemName) {id}}'%board_id\n",
+    "    vars = {'myItemName' : groupname}\n",
+    "    data = {'query' : group, 'variables' : vars}\n",
+    "    r = requests.post(url=apiUrl, json=data, headers=headers)\n",
+    "    print(r.json())"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 10,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "{'data': {'create_group': {'id': 'hw478377'}}, 'account_id': 11875922}\n"
+     ]
+    }
+   ],
+   "source": [
+    "creategroupreturnid(copycopyboard, \"HW4\")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 11,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "#Creating item python:\n",
+    "def create_item(board_id, group_id, name):\n",
+    "    return monday.items.create_item(board_id = board_id, group_id= group_id,  item_name = name)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 12,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "def create_subitem_returnid(parent_id, body):\n",
+    "    s = create_sub_item(parent_id, body)\n",
+    "    print(parent_id, body, s)\n",
+    "    return int(s['data']['create_subitem']['id'])"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 13,
+   "metadata": {
+    "scrolled": false
+   },
+   "outputs": [],
+   "source": [
+    "#Creating sub-items:\n",
+    "def create_sub_item(parent_id, name):\n",
+    "    return monday.items.create_subitem(parent_item_id = parent_id, subitem_name = name, column_values=None, create_labels_if_missing=False)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 14,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# adding update:\n",
+    "def addupdate(itemnum, body):\n",
+    "    addupdate = 'mutation($myItemName: String!){ create_update (item_id: %d, body: $myItemName) { id } }'%itemnum\n",
+    "    vars = {'myItemName' : body}\n",
+    "    data = {'query' : addupdate, 'variables' : vars}\n",
+    "    r = requests.post(url=apiUrl, json=data, headers=headers)\n",
+    "    print(r.json())"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 15,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "#adding update to update:\n",
+    "def adduptoupdate(item_id, parent_id, body):\n",
+    "    addupdate = 'mutation{ create_update (item_id: %d, parent_id: %d body:%s) { id } }'%(item_id, parent_id, body)\n",
+    "    data = {'query' : addupdate}\n",
+    "\n",
+    "    r = requests.post(url=apiUrl, json=data, headers=headers) # make request\n",
+    "    print(r.json())"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## Inserting Excel to monday:"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## Functions for inserting excel:"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 16,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "def excel_to_monday(filename, board_id, parent_itemid):\n",
+    "    df = pd.read_csv(filename, header = None)\n",
+    "    b = df.T\n",
+    "    # Inserting Question as sub-items:\n",
+    "    for quest in b:\n",
+    "        idnum = create_subitem_returnid(parent_itemid, b[quest][0])\n",
+    "        for i in b[quest][1:]:\n",
+    "            if not isnan(i):\n",
+    "                addupdate(idnum, i)\n",
+    "            else:\n",
+    "                break"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 17,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Recognizing isnan\n",
+    "def isnan(value):\n",
+    "    try:\n",
+    "        import math\n",
+    "        return math.isnan(float(value))\n",
+    "    except:\n",
+    "        return False"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 18,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "#Turn answers to 1,2,3:\n",
+    "def digit(str):\n",
+    "    for t in str.split(\"_\"):\n",
+    "        try:\n",
+    "            l = int(t)\n",
+    "        except ValueError:\n",
+    "            pass\n",
+    "    return l"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 19,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# parse group into parts:\n",
+    "def create_parts(num_of_parts, board_id, group_id):\n",
+    "    for i in range(num_of_parts):\n",
+    "        create_item(board_id, group_id, \"Part %d\"%(i+1))"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## Implementation:"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 20,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "#board ids in copycopyboard:\n",
+    "academicboard = 2668571097"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 21,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "[{'id': '2668489149'}, {'id': '2668489181'}, {'id': '2668489213'}, {'id': '2668489254'}]\n",
+      "HW4p1.csv\n",
+      "2668489149 Is rock n roll great? {'data': {'create_subitem': {'id': '2668513835', 'name': 'Is rock n roll great?', 'column_values': [{'id': 'person', 'text': ''}, {'id': 'status', 'text': None}, {'id': 'date0', 'text': ''}], 'board': {'id': '2668490338', 'name': 'Subitems of Academic 4'}}}, 'account_id': 11875922}\n",
+      "2668489149 Is it so amazing? {'data': {'create_subitem': {'id': '2668513862', 'name': 'Is it so amazing?', 'column_values': [{'id': 'person', 'text': ''}, {'id': 'status', 'text': None}, {'id': 'date0', 'text': ''}], 'board': {'id': '2668490338', 'name': 'Subitems of Academic 4'}}}, 'account_id': 11875922}\n",
+      "2668489149 What is the color of life? {'data': {'create_subitem': {'id': '2668513911', 'name': 'What is the color of life?', 'column_values': [{'id': 'person', 'text': ''}, {'id': 'status', 'text': None}, {'id': 'date0', 'text': ''}], 'board': {'id': '2668490338', 'name': 'Subitems of Academic 4'}}}, 'account_id': 11875922}\n",
+      "2668489149 Want to fly? {'data': {'create_subitem': {'id': '2668513934', 'name': 'Want to fly?', 'column_values': [{'id': 'person', 'text': ''}, {'id': 'status', 'text': None}, {'id': 'date0', 'text': ''}], 'board': {'id': '2668490338', 'name': 'Subitems of Academic 4'}}}, 'account_id': 11875922}\n",
+      "2668489149 What do you do? {'data': {'create_subitem': {'id': '2668513956', 'name': 'What do you do?', 'column_values': [{'id': 'person', 'text': ''}, {'id': 'status', 'text': None}, {'id': 'date0', 'text': ''}], 'board': {'id': '2668490338', 'name': 'Subitems of Academic 4'}}}, 'account_id': 11875922}\n",
+      "HW4p3.csv\n",
+      "2668489213 Maby you are? {'data': {'create_subitem': {'id': '2668513973', 'name': 'Maby you are?', 'column_values': [{'id': 'person', 'text': ''}, {'id': 'status', 'text': None}, {'id': 'date0', 'text': ''}], 'board': {'id': '2668490338', 'name': 'Subitems of Academic 4'}}}, 'account_id': 11875922}\n",
+      "2668489213  what? {'data': {'create_subitem': {'id': '2668514001', 'name': 'what?', 'column_values': [{'id': 'person', 'text': ''}, {'id': 'status', 'text': None}, {'id': 'date0', 'text': ''}], 'board': {'id': '2668490338', 'name': 'Subitems of Academic 4'}}}, 'account_id': 11875922}\n",
+      "2668489213  why? {'data': {'create_subitem': {'id': '2668514023', 'name': 'why?', 'column_values': [{'id': 'person', 'text': ''}, {'id': 'status', 'text': None}, {'id': 'date0', 'text': ''}], 'board': {'id': '2668490338', 'name': 'Subitems of Academic 4'}}}, 'account_id': 11875922}\n",
+      "HW4p2.csv\n",
+      "2668489181 Is it amazing? {'data': {'create_subitem': {'id': '2668514077', 'name': 'Is it amazing?', 'column_values': [{'id': 'person', 'text': ''}, {'id': 'status', 'text': None}, {'id': 'date0', 'text': ''}], 'board': {'id': '2668490338', 'name': 'Subitems of Academic 4'}}}, 'account_id': 11875922}\n"
+     ]
+    }
+   ],
+   "source": [
+    "#Running from A to Z\n",
+    "\n",
+    "lstgroups = get_lst_ids(academicboard)\n",
+    "\n",
+    "itemslst = getgroupitemsids_ret_lst(academicboard, lstgroups[3])\n",
+    "\n",
+    "with open('rocknroll.txt', encoding='utf8') as f:\n",
+    "    txt = f.read()\n",
+    "f.close()\n",
+    "\n",
+    "#clean1 = txt.split(\"\") clean all before sending massage\n",
+    "x = txt.split(\"#HW\")\n",
+    "\n",
+    "dic = {}\n",
+    "csvs = {}\n",
+    "for QUES in x:\n",
+    "    stripped_phrases = QUES.split(\"\\n\")\n",
+    "    stripped_phrase = stripped_phrases[0]\n",
+    "\n",
+    "    #print(QUES)\n",
+    "    group = QUES[0]\n",
+    "    #check_group(group)\n",
+    "    #check_Q1(QUES[1])\n",
+    "    item = QUES[2]\n",
+    "    #check_item(item)\n",
+    "    try:\n",
+    "        y = csvs[group]\n",
+    "    except:\n",
+    "        csvs[group] = []\n",
+    "    if csvs[group].count(item) == 0:\n",
+    "        csvs[group].append(item)\n",
+    "    key = str(group) + \"_\" + str(item)\n",
+    "    try:\n",
+    "        x =dic[key]\n",
+    "    except:\n",
+    "        dic[key] = []\n",
+    "    dic[key].append(stripped_phrase[4:])\n",
+    "\n",
+    "for key, value in dic.items():\n",
+    "    GnI = key.split(\"_\")\n",
+    "    df = pd.DataFrame()\n",
+    "    df[0] =value\n",
+    "    if GnI[0].isdigit() and GnI[1].isdigit():\n",
+    "        df.to_csv('HW%sp%s.csv'%(GnI[0],GnI[1]), index = False, header = False)\n",
+    "        name = 'HW%sp%s.csv'%(GnI[0],GnI[1])\n",
+    "        print (name)\n",
+    "        excel_to_monday(name, academicboard, itemslst[int(GnI[1])-1])"
+   ]
+  }
+ ],
+ "metadata": {
+  "kernelspec": {
+   "display_name": "Python 3",
+   "language": "python",
+   "name": "python3"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3",
+   "version": "3.8.5"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 4
+}
